@@ -107,19 +107,209 @@ Dom型xss：修改页面节点，不过后端不会被后端过滤
 * 制作白名单...
 
 
+## php伪协议
+
+常见的文件包含函数:include、require、include_once、require_once、highlight_file 、show_source 、readfile 、file_get_contents 、fopen 、file
+
+
+协议概要：file:// php://filter php://input zip:// compress.bzip2://、compress.zlib://、data://
+
+
+环境概要：
+
+php.ini:
+
+allow_url_fopen: on 默认开启，on的意思是激活url形式的fopen封装协议是的可以访问url对象文件等
+
+allow_url_include: off 默认关闭，该选项on便是允许包含url 对象文件等。
+
+
+> file://协议
+PHP.ini:
+
+file:/该协议在双off的情况下也可以使用
+
+allow_url_fopen: on/off
+
+allow_url_include: on/off
+
+file://用于访问本地文件系统，在ctf中通常用来读取本地文件且不受allow_url_fopen与allow_url_include的限制
+
+用法:
+
+* /path/to/file.txt
+* relative/path/to/file.txt
+* fileInCwd.ext
+* C:/path/to/winfile.ext
+* C:\path\to\winfile.txt
+* \\smbserver\share\path\to\winfile.ext
+* file:///path/to/file.ext
+
+![image](https://user-images.githubusercontent.com/76896357/115543619-26a44b80-a2d4-11eb-90e6-ebefc2362e1c.png)
+
+> php://协议
+条件:
+不需要开启allow_url_fopen,
+
+php://访问各个输入输出流(I/O stream),在ctf尝试用的是php://filter和php://input,php://filter用于读取源码，php://input用于执行php代码
+
+> php://filter协议
+
+读取源代码并进行base64编码输出。不然会直接当作php代码执行就看不到源代码内容
+
+
+PHP.ini：
+
+php://filter在双off的情况下也可以正常使用；
+
+allow_url_fopen ：off/on
+
+allow_url_include：off/on
+
+**对所要传输的数据进行一定规则的过滤**
+
+#### 使用
+
+```
+<?php
+    $file1=$_GET['file1'];
+    $file2=$_GET['file2'];
+    $txt = $_GET['txt'];
+    echo file_get_contents($file1);
+    file_put_contents($file2,$txt)
+?>
+```
+* file_get_contents --将整个文件读入一个字符串
+* file_put_contents --将字符串写入文件
+
+* 读取文件
+
+```
+# 明文读取
+index.php?file1=php://filter/resource=file.txt
+
+# 编码读取
+index.php?file=php://filter/read=covert.base64-encode/resource=file.txt
+```
+
+* 写入文件
+
+```
+# 明文写入
+index.php?file2=php://filter/resource=test.txt
+
+# 编码写入
+index.php?file2=php://filter/write=convert.base64-encode/resource=test.txt&txt=helloworld
+```
+
+## 字符串过滤器
+
+* **spring.rot13**
+
+    str_rot13--对字符串执行rot13转换，ROT13编码简单滴使用字母表中后面第13个字母替换当前字母，同时忽略非字母表中的字符，编码和解码都是用相同的函数，传递一个编码过的字符串作为参数，得到原始的字符串。
+
+* **string.toupper**
+
+使用此过滤器等同于strtoupper()函数处理所有的数据流。
+
+---将字符串转换为大写
+
+* **string.tolower**
+
+等同于strlower()函数处理流数据
+
+
+* **string.strip_tags**
+ 
+可以用两种格式接受参数，一种是和stip_tags()函数第二个参数相似的一个包含有标记列表的字符串，另一种是包含有标记名的数组。
+
+- strip_tags--从字符中去除HTML和PHP标记，该函数尝试返回给定的字符串str去除空字符，html，php标记的结果使用与fgetss()一样的机制去除标记.
+ 
+ 
+ 注释：该函数始终会剥离 HTML 注释。这点无法通过 allow 参数改变
+ 
+![image](https://user-images.githubusercontent.com/76896357/115666915-c1099b00-a377-11eb-8eb4-b63621306c21.png)
+
+运行实例：
+
+![image](https://user-images.githubusercontent.com/76896357/115666954-cff04d80-a377-11eb-9e91-db8aa4a54fa8.png)
 
 
 
+### 转换过滤器
+
+* **convert.base64**
+
+convert.base64-encode和convert.base64-decode使用这两个过滤器等同于用base64_encode和base64_decode函数处理数据 convert.base64-encode支持以一个关
+联数组给出的参数。如果给出了 line-length，base64 输出将被用 line-length个字符为长度而截成块。
+如果给出了 line-break-chars，每块将被用给出的字符隔开。这些参数的效果和用 base64_encode()再
+加上 chunk_split()相同。
+ 
+ 
+ 
+* **convert.quoted**
+
+convert.quoted-printable-encode 和 convert.quoted-printable-decode 使用此过滤器的 decode
+版本等同于用 quoted_printable_decode()函数处理所有的流数据。没有和 convert.quoted-printableencode相对应的函数。 convert.quoted-printable-encode支持以一个关联数组给出的参数。除了支持和 convert.base64-encode一样的附加参数外,convert.quoted-printable-encode还支持布尔参数
+binary和 force-encode-first。 convert.base64-decode只支持 line-break-chars参数作为从编码载荷中
+剥离的类型提示。
+
+* **convert.iconv**
+
+这个过滤器需要php支持iconv，而iconv是默认编译的。使用convert.iconv.* 等同于使用iconv()函数处理流数据
+
+- iconv--字符串按要求的字符编码来转换:
+
+两种方法:
+
+```
+convert.iconv.<input-encoding>.<output-encoding>
+or
+convert.iconv.<input-encoding>/<output-encoding>
+```
 
 
+![image](https://user-images.githubusercontent.com/76896357/115669842-4f335080-a37b-11eb-8a4f-338a4e9ec9f2.png)
+
+支持的字符编码
+```
+UCS-4* 
+UCS-4BE 
+UCS-4LE* * 
+UCS-2 
+UCS-2BE 
+UCS-2LE 
+UTF-32* 
+UTF-32BE* 
+UTF-32LE* 
+UTF-16* 
+UTF-16BE* 
+UTF-16LE* 
+UTF-7 
+UTF7-IMAP 
+UTF-8* 
+ASCII*
+```
+
+### 压缩过滤器：
+
+虽然 压缩封装协议 提供了在本地文件系统中 创建 gzip 和 bz2 兼容文件的方法，但不代表可以在网络的
+流中提供通用压缩的意思，也不代表可以将一个非压缩的流转换成一个压缩流。对此，压缩过滤器可以
+在任何时候应用于任何流资源。
 
 
+```
+Note: 压缩过滤器 不产生命令行工具如 gzip的头和尾信息。只是压缩和解压数据流中的有效载荷部 分。zlib.* 压缩过滤器自 PHP 版本 5.1.0起可用，在激活 zlib的前提下。也可以通过安装来自 » PECL的 » zlib_filter包作为一个后门在 5.0.x版中使用。此过滤器在 PHP 4 中 不可用。
+```
 
+![image](https://user-images.githubusercontent.com/76896357/115670866-776f7f00-a37c-11eb-9dce-8556e80c279e.png)
 
+### 加密过滤器：
 
+crypt.*和 mdecrypt.*使用 libmcrypt 提供了对称的加密和解密。这两组过滤器都支持 mcrypt 扩展库中相同的算法，格式为 mcrypt.ciphername，其中 ciphername是密码的名字，将被传递给 mcrypt_module_open()。有以下五个过滤器参数可用：
 
+![image](https://user-images.githubusercontent.com/76896357/115671728-65daa700-a37d-11eb-880f-f334560979c8.png)
 
+细则查看加密方式：
 
-
-
-
+https://www.php.net/manual/zh/filters.encryption.php
