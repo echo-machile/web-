@@ -350,7 +350,6 @@ rot13绕过
 * str_rot13()
 
 str_rot13()函数对字符进行移动13位，第一次移动改变，再移动一次，返回原字符
-
  <?php exit; 在经过rot13编码后会变成 <?cuc rkvg(); ，不过这种利用手法
 的前提是PHP不开启short_open_tag。
 
